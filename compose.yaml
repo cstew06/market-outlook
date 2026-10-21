@@ -19,6 +19,7 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg://market:market_local@db:5432/market_outlook
       DATA_MODE: ${DATA_MODE:-demo}
+      NEWS_PROVIDER: ${NEWS_PROVIDER:-massive}
       MASSIVE_API_KEY: ${MASSIVE_API_KEY:-}
       COINGECKO_API_KEY: ${COINGECKO_API_KEY:-}
       ALPHA_VANTAGE_API_KEY: ${ALPHA_VANTAGE_API_KEY:-}

@@ -35,9 +35,10 @@ Copy `.env.example` to `.env` in the repository root, fill in the providers you 
 
 | Variable | Purpose |
 | --- | --- |
-| `MASSIVE_API_KEY` | Stock/ETF daily price history and prior closing prices |
+| `MASSIVE_API_KEY` | Stock/ETF daily prices and the default news feed |
 | `COINGECKO_API_KEY` | CoinGecko Demo API: crypto quotes and daily history |
-| `ALPHA_VANTAGE_API_KEY` | Recent article titles, summaries, and source URLs |
+| `ALPHA_VANTAGE_API_KEY` | Optional alternative news provider; news may require a premium plan |
+| `NEWS_PROVIDER` | `massive` (default) or `alpha_vantage` |
 | `GEMINI_API_KEY` | Structured market outlook generation |
 | `GEMINI_MODEL` | Model supporting structured JSON output; default `gemini-3.1-flash-lite` |
 
@@ -49,13 +50,15 @@ docker compose up -d --force-recreate api web
 
 Official provider documentation: [Massive aggregates](https://massive.com/docs/rest/stocks/aggregates/custom-bars), [CoinGecko](https://docs.coingecko.com/reference/introduction), [Alpha Vantage news](https://www.alphavantage.co/documentation/#news-sentiment), [Gemini structured output](https://ai.google.dev/gemini-api/docs/structured-output).
 
-Provider access, free quotas, and model availability can change. Confirm access to the endpoints above on your chosen plan. You do not need to configure all providers: unavailable data is shown explicitly. Stock prices are **end-of-day**, not streaming. Crypto prices carry the provider's observation time. Live integrations have adapter and failure-path tests; using your own keys is required to verify account entitlements and actual upstream responses.
+Provider access, free quotas, and model availability can change. Confirm access to the endpoints above on your chosen plan. You do not need to configure all providers: unavailable data is shown explicitly. Stock prices are **end-of-day**, not streaming. Crypto prices carry the provider's observation time. Live integrations have adapter and failure-path tests. Account entitlements still depend on your own keys and plan.
+
+Massive supplies the default news feed using the same key as stock prices; its [news endpoint documentation](https://massive.com/docs/rest/stocks/news) lists access on the Stocks Basic plan. Stock/ETF articles are ticker-filtered. Crypto coverage searches explicit asset names in a shared snapshot of the latest 1,000 articles within seven days. This is a bounded sample, not comprehensive crypto news; some assets may have insufficient coverage for an outlook. Alpha Vantage remains an optional alternative, selected with `NEWS_PROVIDER=alpha_vantage`; its news endpoint returned a premium-plan requirement during live verification.
 
 ### Quotas and freshness
 
-- Stock quotes/history: cached for 3 hours; requests limited to 5 per minute.
+- Stock quotes/history: cached for 3 hours; stock prices and Massive news share a 5-request-per-minute budget.
 - Crypto quotes: 60 seconds; history: 15 minutes; combined request guard: 90 per minute.
-- News: 30 minutes; only the last 7 days are eligible; up to 8 deduplicated articles; 25 requests per rolling 24 hours.
+- News: 30-minute feed cache; only the last 7 days are eligible; up to 8 deduplicated articles. Optional Alpha Vantage news has a 25-request-per-24-hour guard.
 - Outlooks: saved in PostgreSQL and reused for 3 hours; at most 3 model requests per minute.
 
 These are local guards, not guarantees about a provider's allowance. Price/news caches and counters reset when the API restarts. Run one API worker. On a first uncached load, a broad stock watchlist can exceed the minute allowance; wait and use **Refresh prices** or **Retry**. Existing holdings and outlooks remain saved.

@@ -1065,6 +1065,10 @@ export default function App() {
               : 'Stock prices are end-of-day. Crypto prices are the latest available provider observations. Missing or rate-limited data is shown as unavailable.'}
           </p>
           <h3 className="settings-heading">Optional live connections</h3>
+          <p className="small muted settings-help">
+            News source: {config?.news_provider === 'alpha_vantage' ? 'Alpha Vantage' : 'Massive'}.
+            Crypto coverage is filtered for explicit asset mentions and may be limited.
+          </p>
           <div className="provider-list">
             {config?.providers.map((p) => (
               <div key={p.name}>

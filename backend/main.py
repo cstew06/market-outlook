@@ -100,6 +100,7 @@ def health(db: Session = Depends(get_db)):
 def configuration():
     return dict(
         mode=config.MODE,
+        news_provider=config.NEWS_PROVIDER,
         sample_as_of=demo.AS_OF.isoformat() if config.MODE == "demo" else None,
         providers=[
             dict(name=name, configured=bool(key))

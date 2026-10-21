@@ -194,6 +194,82 @@ class ProviderTests(unittest.TestCase):
         request.assert_not_called()
         self.assertEqual(ctx.exception.status_code, 422)
 
+    def test_massive_news_maps_publisher_and_rejects_unsafe_urls(self):
+        row = {
+            "title": "NVIDIA reports results",
+            "article_url": "https://example.com/nvidia",
+            "description": "A recent report on demand and margins.",
+            "publisher": {"name": "Example Publisher"},
+            "published_utc": "2026-10-19T15:00:00-04:00",
+        }
+        news = providers.normalize_massive_news(
+            [row, dict(row, title="Unsafe", article_url="javascript:alert(1)"), None],
+            "NVDA",
+            now=datetime(2026, 10, 20, tzinfo=UTC),
+        )
+        self.assertEqual(len(news), 1)
+        self.assertEqual(news[0]["source"], "Example Publisher")
+        self.assertEqual(news[0]["published_at"], "2026-10-19T19:00:00+00:00")
+        self.assertFalse(news[0]["is_sample"])
+
+    def test_crypto_news_reuses_feed_and_requires_relevant_mentions(self):
+        rows = [
+            {
+                "title": title,
+                "article_url": f"https://example.com/{i}",
+                "description": "",
+                "publisher": {"name": "Example Publisher"},
+                "published_utc": datetime.now(UTC).isoformat(),
+            }
+            for i, title in enumerate(
+                [
+                    "Bitcoin adoption",
+                    "Ethereum activity",
+                    "Bitcoin Cash update",
+                    "A new link",
+                    "Chainlink adoption",
+                ]
+            )
+        ]
+        with patch("app.providers.request", return_value={"results": rows}) as request:
+            bitcoin = providers.get_massive_news("BTC")
+            ethereum = providers.get_massive_news("ETH")
+            chainlink = providers.get_massive_news("LINK")
+            solana = providers.get_massive_news("SOL")
+        self.assertEqual(request.call_count, 1)
+        self.assertEqual([n["title"] for n in bitcoin], ["Bitcoin adoption"])
+        self.assertEqual([n["title"] for n in ethereum], ["Ethereum activity"])
+        self.assertEqual([n["title"] for n in chainlink], ["Chainlink adoption"])
+        self.assertEqual(solana, [])
+        self.assertNotIn("ticker", request.call_args.kwargs["params"])
+
+    def test_stock_news_uses_ticker_filter_and_empty_feed_is_valid(self):
+        with patch("app.providers.request", return_value={"results": []}) as request:
+            self.assertEqual(providers.get_massive_news("NVDA"), [])
+        self.assertEqual(request.call_args.kwargs["params"]["ticker"], "NVDA")
+
+    def test_malformed_massive_news_is_explicit(self):
+        with (
+            patch("app.providers.request", return_value={"results": None}),
+            self.assertRaises(HTTPException) as ctx,
+        ):
+            providers.get_massive_news("NVDA")
+        self.assertEqual(ctx.exception.status_code, 502)
+
+    def test_premium_news_error_does_not_echo_provider_response(self):
+        with (
+            patch.object(config, "NEWS_PROVIDER", "alpha_vantage"),
+            patch(
+                "app.providers.request",
+                return_value={"Information": "Premium endpoint. key=secret-test-value"},
+            ),
+            self.assertRaises(HTTPException) as ctx,
+        ):
+            providers.get_news("NVDA")
+        self.assertEqual(ctx.exception.status_code, 503)
+        self.assertIn("premium plan", ctx.exception.detail)
+        self.assertNotIn("secret-test-value", ctx.exception.detail)
+
 
 if __name__ == "__main__":
     unittest.main()

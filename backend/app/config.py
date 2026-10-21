@@ -15,6 +15,9 @@ DATABASE_URL = os.getenv(
 MASSIVE_KEY = os.getenv("MASSIVE_API_KEY", "")
 COINGECKO_KEY = os.getenv("COINGECKO_API_KEY", "")
 NEWS_KEY = os.getenv("ALPHA_VANTAGE_API_KEY", "")
+NEWS_PROVIDER = os.getenv("NEWS_PROVIDER", "massive").lower()
+if NEWS_PROVIDER not in ("massive", "alpha_vantage"):
+    raise RuntimeError("NEWS_PROVIDER must be massive or alpha_vantage")
 GEMINI_KEY = os.getenv("GEMINI_API_KEY", "")
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.1-flash-lite")
 OUTLOOK_TTL = 3 * 60 * 60

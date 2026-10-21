@@ -78,6 +78,7 @@ export type Outlook = {
 }
 export type Configuration = {
   mode: 'demo' | 'live'
+  news_provider: 'massive' | 'alpha_vantage'
   sample_as_of: string | null
   providers: { name: string; configured: boolean }[]
   outlook_ttl_hours: number

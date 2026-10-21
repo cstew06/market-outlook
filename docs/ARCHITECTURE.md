@@ -28,7 +28,7 @@ flowchart LR
 
 The browser calls only its own `/api` origin. FastAPI loads holdings and watchlists from PostgreSQL, retrieves quotes through the selected provider mode, and calculates portfolio totals. A missing holding quote hides total value and total return; it never treats an unavailable asset as worth zero. Cost basis remains available. Returns exclude fees, dividends, realized gains, and transaction history. Holdings are aggregate quantities and average purchase prices, not brokerage trades.
 
-A live outlook uses recent article titles and summaries from the news adapter. Gemini is instructed to treat source content as untrusted evidence, to acknowledge uncertainty, and to cite only supplied IDs. Pydantic validates every narrative section and citation. Incomplete, malformed, or unreferenced outputs are rejected. The accepted result is stored with its exact source snapshot and model identifier. There is no automatic regeneration or background polling.
+A live outlook uses recent article titles and summaries from the news adapter. Massive is the default news source; Alpha Vantage is an optional alternative. Crypto evidence is filtered for explicit asset-name mentions in a bounded shared news feed. Gemini is instructed to treat source content as untrusted evidence, to acknowledge uncertainty, and to cite only supplied IDs. Pydantic validates every narrative section and citation. Incomplete, malformed, or unreferenced outputs are rejected. The accepted result is stored with its exact source snapshot and model identifier. There is no automatic regeneration or background polling.
 
 ## Persistence
 

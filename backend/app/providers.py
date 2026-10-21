@@ -3,6 +3,7 @@
 import hashlib
 import json
 import math
+import re
 import threading
 import time
 from collections import defaultdict, deque
@@ -236,9 +237,79 @@ def normalize_news(feed, asset_id, now=None):
     return sorted(items, key=lambda x: x["published_at"], reverse=True)[:8]
 
 
-def get_news(asset_id):
-    if config.MODE == "demo":
-        return demo.news(asset_id)
+def normalize_massive_news(rows, asset_id, now=None):
+    """Map publisher metadata to our common evidence schema, then validate it."""
+    feed = []
+    for row in rows:
+        try:
+            published = datetime.fromisoformat(row["published_utc"].replace("Z", "+00:00"))
+            if published.tzinfo is None:
+                continue
+            feed.append(
+                {
+                    "title": row["title"],
+                    "url": row["article_url"],
+                    "summary": row.get("description") or "",
+                    "source": row["publisher"]["name"],
+                    "time_published": published.astimezone(UTC).strftime("%Y%m%dT%H%M%S"),
+                }
+            )
+        except (KeyError, TypeError, ValueError, AttributeError):
+            continue
+    return normalize_news(feed, asset_id, now)
+
+
+CRYPTO_NEWS_TERMS = {
+    "BTC": r"\bbitcoin\b(?!\s+cash)",
+    "ETH": r"\bethereum\b(?!\s+classic)",
+    "SOL": r"\bsolana\b",
+    "LINK": r"\bchainlink\b",
+}
+
+
+def get_massive_news(asset_id):
+    crypto = CATALOG[asset_id]["kind"] == "crypto"
+
+    def load_feed():
+        # Shares the same account budget as stock prices. Crypto assets reuse one
+        # bounded recent feed; arbitrary stock ticker aliases would be misleading.
+        reserve("Massive", 5, 60)
+        params = {
+            "order": "desc",
+            "sort": "published_utc",
+            "limit": 1000 if crypto else 30,
+            "published_utc.gte": (datetime.now(UTC) - timedelta(days=7)).isoformat(),
+        }
+        if not crypto:
+            params["ticker"] = asset_id
+        data = request(
+            "Massive",
+            "https://api.massive.com/v2/reference/news",
+            key=config.MASSIVE_KEY,
+            headers={"Authorization": f"Bearer {config.MASSIVE_KEY}"},
+            params=params,
+        )
+        rows = data.get("results")
+        if not isinstance(rows, list):
+            raise HTTPException(502, "Massive returned an invalid news feed.")
+        return rows
+
+    rows = cached(("massive_news_feed", "crypto" if crypto else asset_id), 1800, load_feed)
+    if crypto:
+        rows = [
+            row
+            for row in rows
+            if isinstance(row, dict)
+            and re.search(
+                CRYPTO_NEWS_TERMS[asset_id],
+                f"{row.get('title', '')} {row.get('description', '')}",
+                re.IGNORECASE,
+            )
+        ]
+    return normalize_massive_news(rows, asset_id)
+
+
+def get_alpha_vantage_news(asset_id):
 
     def load():
         reserve("Alpha Vantage", 25, 86400)
@@ -256,13 +327,29 @@ def get_news(asset_id):
             },
         )
         if not isinstance(data.get("feed"), list):
+            # Never echo upstream text: it could contain credentials or URLs.
+            message = str(data.get("Information", "")).casefold()
+            if "premium" in message:
+                raise HTTPException(
+                    503,
+                    "Alpha Vantage news requires a premium plan for this account. "
+                    "Use NEWS_PROVIDER=massive with your Massive key for the included news feed.",
+                )
             raise HTTPException(
                 503,
                 "News provider returned no feed. Check your key, plan access, and daily quota.",
             )
         return normalize_news(data["feed"], asset_id)
 
-    return cached(("news", asset_id), 1800, load)
+    return cached(("alpha_vantage_news", asset_id), 1800, load)
+
+
+def get_news(asset_id):
+    if config.MODE == "demo":
+        return demo.news(asset_id)
+    if config.NEWS_PROVIDER == "massive":
+        return get_massive_news(asset_id)
+    return get_alpha_vantage_news(asset_id)
 
 
 def generate_outlook(asset_id, sources):
