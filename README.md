@@ -1,6 +1,8 @@
 # Market Outlook
 
-Market Outlook is a market research and portfolio dashboard in development for stocks and cryptocurrencies. It is designed to bring portfolio tracking, watchlists, price charts, and financial news together with AI-assisted analysis of the narratives surrounding individual assets.
+Market Outlook is a market research and portfolio dashboard for stocks, ETFs, and cryptocurrencies. It brings portfolio tracking, watchlists, interactive price charts, and financial news together with source-linked analysis of the narratives surrounding individual assets.
+
+The application includes a complete sample-data workspace and optional live integrations for market data, news, and Gemini-powered outlooks. Each outlook presents a current narrative, a bull case, and a bear case with references to the evidence behind them.
 
 ## End Goal
 

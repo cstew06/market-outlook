@@ -8,8 +8,8 @@ export default defineConfig({
     port: 5173,
     strictPort: true,
     proxy: {
-      // Forward this browser request to FastAPI during local development.
-      '/health': 'http://127.0.0.1:8000',
+      '/api': { target: 'http://127.0.0.1:8000', changeOrigin: false },
+      '/health': { target: 'http://127.0.0.1:8000', changeOrigin: false },
     },
   },
 })

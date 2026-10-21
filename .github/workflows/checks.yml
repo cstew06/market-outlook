@@ -1,0 +1,56 @@
+name: Checks
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run format:check
+      - run: npm run build
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: market
+          POSTGRES_PASSWORD: market_local
+          POSTGRES_DB: market_outlook
+        ports: ['5433:5432']
+        options: >-
+          --health-cmd "pg_isready -U market -d market_outlook"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATA_MODE: demo
+      DATABASE_URL: postgresql+psycopg://market:market_local@127.0.0.1:5433/market_outlook
+      TEST_DATABASE_URL: postgresql+psycopg://market:market_local@127.0.0.1:5433/market_outlook
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: pip
+          cache-dependency-path: backend/requirements*.txt
+      - run: pip install -r requirements-dev.txt
+      - run: ruff check .
+      - run: ruff format --check .
+      - run: alembic upgrade head
+      - run: alembic check
+      - run: python -m unittest discover -s tests -v
